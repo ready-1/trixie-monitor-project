@@ -26,9 +26,9 @@ fi
 
 # Sync files
 if [ "$DRY_RUN" = "--dry-run" ]; then
-    rsync $RSYNC_FLAGS --dry-run ./ "fuse@$TARGET_IP:/home/fuse/"
+    rsync $RSYNC_FLAGS --dry-run ./ "monitor@$TARGET_IP:/home/fuse/"
 else
-    rsync $RSYNC_FLAGS ./ "fuse@$TARGET_IP:/home/fuse/"
+    rsync $RSYNC_FLAGS ./ "monitor@$TARGET_IP:/home/fuse/"
 fi
 
 echo "Sync to $TARGET_IP completed."
