@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
-source config.sh  # FUSESYSTEM="devlab"; update/export if missing
+
+# Persistence Fix: Use full path for user home (idempotent; avoids sudo HOME=/root issues)
+USER_HOME="/home/monitor"
+if ! grep -q "source $USER_HOME/config.sh" $USER_HOME/.bashrc; then
+  echo "source $USER_HOME/config.sh" >> $USER_HOME/.bashrc
+fi
+source $USER_HOME/.bashrc  # Apply; loads exported FUSESYSTEM="devlab", etc.
+echo $FUSESYSTEM  # Verify in output: "devlab"
 
 # Section 1: Install/Pin Ansible-Core (Active - Run; share ansible --version ~2.19.0)
 sudo apt update
@@ -11,8 +18,16 @@ fi
 ansible --version  # PoL
 
 # Section 2: Install Collections (Uncomment post-Section 1)
-# ansible-galaxy collection install community.network community.general -r ansible/requirements.yml
-# # requirements.yml: collections: - name: community.network version: ">=5.0.0" - name: community.general
+mkdir -p ansible
+cat <<EOF > ansible/requirements.yml
+collections:
+  - name: community.network
+    version: ">=5.0.0"  # Pin for replicability; assume CLI fallback compat issues
+  - name: community.general
+EOF
+ansible-galaxy collection install -r ansible/requirements.yml  # Install; verbose: add -vvv if errors
+ansible-galaxy collection list  # PoL: Verify installed versions
+# requirements.yml: collections: - name: community.network version: ">=5.0.0" - name: community.general
 
 # Section 3: Vault for Creds (Uncomment later)
 # mkdir -p ansible
