@@ -1,0 +1,32 @@
+#!/bin/bash
+# config.sh: Environment variables for phase1_setup.sh and future phases
+# Purpose: Modular configuration for Debian Trixie server setup
+# Breadcrumb: [PHASE1_CONFIG_SH_20250830] Initial template with placeholders
+# Notes: Source in phase1_setup.sh, add to .gitignore, vars ephemeral
+
+# Phase 1: Base Server
+export IN_BAND_IP="192.168.99.91/24"      # In-band IP (VM/Server 1; 192.168.99.92/24 for Server 2)
+export OOB_IP="10.211.55.2/24"            # OOB IP (Parallels Shared; TBD for Intel)
+export GATEWAY="192.168.99.1"             # pfSense gateway
+export MONITOR_USER="fuse"                # Consistent user (was monitor)
+export MONITOR_PASS="FuseFuse123!"        # Temporary password, change post-setup
+export PUBLIC_SSH_KEY=""                  # Replace with: cat /Users/bob/.ssh/id_bob_ed25519.pub
+export TAILSCALE_AUTHKEY=""               # Replace with Tailscale key from https://login.tailscale.com/admin/settings/keys
+export TAILSCALE_SUBNET="192.168.99.0/24" # Subnet to advertise
+export GRAYLOG_LOG_SIZE="50G"             # LVM size for /var/log/graylog
+export HOSTNAME="monitor-server"          # Server hostname
+export DOMAIN="eastpointe.local"          # Domain (optional)
+export TIMEZONE="UTC"                     # Timezone
+export LOCALE="en_US.UTF-8"               # Locale
+
+# Future Phases (Prometheus, Grafana, Graylog, Ansible, Nginx)
+export PROMETHEUS_PORT="9090"             # Prometheus default port
+export GRAFANA_PORT="3000"                # Grafana default port
+export GRAYLOG_PORT="9000"                # Graylog default port
+export NGINX_PORT_HTTP="80"               # Nginx HTTP
+export NGINX_PORT_HTTPS="443"             # Nginx HTTPS
+export ANSIBLE_INVENTORY_PATH="/etc/ansible/hosts"  # Ansible inventory file
+export M4300_INBAND_IP="192.168.99.3"     # M4300 in-band IP
+export M4300_OOB_IP="192.168.99.4"        # M4300 OOB IP
+export PFSENSE_IP="192.168.99.1"          # pfSense IP
+export SNMP_COMMUNITY="public"            # SNMP community string (Phase 4)
