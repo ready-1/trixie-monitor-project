@@ -2,13 +2,15 @@
 
 # phase1_setup.sh
 # Purpose: Perform base setup on Debian Trixie VM for monitoring server.
-# Assumes: Run as root via SSH; config.sh in /home/monitor/ with vars (MONITOR_USER=monitor, IN_BAND_IP, GATEWAY, TIMEZONE, DNS_SERVERS="192.168.99.1 8.8.8.8", etc.).
-# Workflow: Iterative; start with Section 1 active.
+# Assumes: Run as root via SSH; config.sh in /home/monitor/ with exported vars (e.g., export TIMEZONE="America/New_York").
+# Workflow: Iterative; Sections 1-2 active with internet check.
 # Best practices: Safety options; logging; checks.
-# Research: Use /etc/os-release for version check (VERSION_CODENAME=trixie in Debian 13; /etc/debian_version=13.0 post-release).
-# Fixes: Updated version check to source /etc/os-release; handles stable Trixie (released Aug 2025).
-# Idempotency: Minimal in Section 1; expands later.
+# Research: Debian 13 Trixie stable since Jun 2025; apt upgrade -y sufficient/safer; ping for connectivity (8.8.8.8 reliable public DNS, no DNS resolve needed).
+# Fixes: Added internet check pre-apt; ping -c 3 -W 5 (3 packets, 5s timeout); exit on fail for safety (apt needs net).
+# Idempotency: apt safe to rerun; ping non-destructive.
 # Documentation: Inline; update README.md post-success.
+# Potential issues: Firewall/DNS may block ping (ufw not yet enabled; assume pfSense allows); if VM bridged, host net affects; fallback to other IP if needed.
+# Questions: Confirm ping target (8.8.8.8 ok? Alt: 1.1.1.1)? Vars as expected? LVM/swap details?
 
 # Section 1: Initialize environment
 set -euo pipefail
@@ -18,15 +20,31 @@ MONITOR_USER="monitor"  # Hardcoded for bootstrap; overridden by config.sh if di
 if [ "${VERSION_CODENAME}" != "trixie" ]; then echo "Not Trixie"; exit 1; fi
 source "/home/$MONITOR_USER/config.sh"
 LOG_FILE="/var/log/phase1_setup.log"
+> "$LOG_FILE"  # Truncate/clear log for this run.
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "Phase 1 setup start: $(date)"
+echo "Key vars from config.sh:"
+echo "MONITOR_USER: $MONITOR_USER"
+echo "IN_BAND_IP: $IN_BAND_IP"
+echo "GATEWAY: $GATEWAY"
+echo "TIMEZONE: $TIMEZONE"
+echo "DNS_SERVERS: $DNS_SERVERS"
+# Add more as needed, e.g., echo "GRAYLOG_LOG_SIZE: $GRAYLOG_LOG_SIZE"
 df -h | grep -E '/var|/srv|/root|/swap' || true  # Log LVM mounts; non-fatal.
 
-# # Section 2: System update and upgrade
-# apt update
-# apt full-upgrade -y
-# apt autoremove -y
-# apt clean
+# Section 2: System update and upgrade
+echo "Checking internet connectivity..."
+if ping -c 3 -W 5 8.8.8.8 > /dev/null 2>&1; then
+    echo "Internet connectivity confirmed."
+else
+    echo "No internet connectivity."
+    echo "Error: No internet access. Check network and try again." >&2
+    exit 1
+fi
+apt update
+apt upgrade -y
+apt autoremove -y
+apt clean
 
 # # Section 3: Configure networking
 # cp /etc/network/interfaces /etc/network/interfaces.bak
