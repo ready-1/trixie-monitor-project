@@ -8,6 +8,8 @@
 export IN_BAND_IP="192.168.99.91/24"      # In-band IP (VM/Server 1; 192.168.99.92/24 for Server 2)
 export OOB_IP="10.211.55.2/24"            # OOB IP (Parallels Shared; TBD for Intel)
 export GATEWAY="192.168.99.1"             # pfSense gateway
+export DNS_SERVERS="192.168.99.1 8.8.8.8"  # Space-separated list of IPv4 addresses; primary first, fallback(s) next. Use local (e.g., pfSense gateway) if available for lower latency; public like 8.8.8.8/8.8.4.4 (Google) or 1.1.1.1 (Cloudflare) as backups.
+export DNS_SEARCH="mydomain.local"        # Update this to the local search domain
 export MONITOR_USER="monitor"             # Consistent user
 export MONITOR_PASS="FuseFuse123!"        # Temporary password, change post-setup
 export PUBLIC_SSH_KEY=""                  # Replace with: cat /Users/bob/.ssh/id_bob_ed25519.pub
