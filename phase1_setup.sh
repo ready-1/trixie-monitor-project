@@ -1,161 +1,71 @@
 #!/bin/bash
-# phase1_setup.sh: Configures Debian 13.0.0 (Trixie) for Phase 1 monitoring
-# Purpose: Set up networking, packages, Tailscale, Cockpit, TFTP, UFW, LVM, logrotate
-# Usage: sudo ./phase1_setup.sh
-# Breadcrumb: [PHASE1_SETUP_SH_UPDATED_20250830] Updated for MONITOR_USER=monitor, single NIC
-# Requirements: Debian 13.0.0, root access, x86_64, config.sh in same dir
-# Notes: Idempotent, sources config.sh, optional packages, single NIC
 
-set -e
+# phase1_setup.sh
+# Purpose: Perform base setup on Debian Trixie VM for monitoring server.
+# Assumes: Run as root via SSH; config.sh in /home/monitor/ with vars (MONITOR_USER=monitor, IN_BAND_IP, GATEWAY, TIMEZONE, DNS_SERVERS="192.168.99.1 8.8.8.8", etc.).
+# Workflow: Iterative; start with Section 1 active.
+# Best practices: Safety options; logging; checks.
+# Research: Use /etc/os-release for version check (VERSION_CODENAME=trixie in Debian 13; /etc/debian_version=13.0 post-release).
+# Fixes: Updated version check to source /etc/os-release; handles stable Trixie (released Aug 2025).
+# Idempotency: Minimal in Section 1; expands later.
+# Documentation: Inline; update README.md post-success.
 
-# Source config.sh
-if [ ! -f ./config.sh ]; then
-    echo "Error: config.sh not found in current directory."
-    exit 1
-fi
-. ./config.sh
+# Section 1: Initialize environment
+set -euo pipefail
+if [ "$(id -u)" -ne 0 ]; then echo "Must run as root"; exit 1; fi
+MONITOR_USER="monitor"  # Hardcoded for bootstrap; overridden by config.sh if differs.
+. /etc/os-release  # Source for VERSION_CODENAME.
+if [ "${VERSION_CODENAME}" != "trixie" ]; then echo "Not Trixie"; exit 1; fi
+source "/home/$MONITOR_USER/config.sh"
+LOG_FILE="/var/log/phase1_setup.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "Phase 1 setup start: $(date)"
+df -h | grep -E '/var|/srv|/root|/swap' || true  # Log LVM mounts; non-fatal.
 
-# Validate required variables
-if [ -z "$IN_BAND_IP" ] || [ -z "$GATEWAY" ] || [ -z "$MONITOR_USER" ]; then
-    echo "Error: Missing required variables in config.sh (IN_BAND_IP, GATEWAY, MONITOR_USER)."
-    exit 1
-fi
+# # Section 2: System update and upgrade
+# apt update
+# apt full-upgrade -y
+# apt autoremove -y
+# apt clean
 
-# Auto-detect NIC (single in-band)
-IN_BAND_IF=$(ip link | grep -E '^[0-9]+: (eth[0-9]|enp[0-9]s[0-9])' | head -n1 | awk '{print $2}' | tr -d ':')
-if [ -z "$IN_BAND_IF" ]; then
-    echo "Error: Could not detect NIC. Check 'ip link'."
-    exit 1
-fi
-echo "Detected NIC: in-band=$IN_BAND_IF"
+# # Section 3: Configure networking
+# cp /etc/network/interfaces /etc/network/interfaces.bak
+# NETMASK=$(echo "$IN_BAND_IP" | awk -F/ '{print $2}' | xargs -I{} sh -c 'printf "255.%s\n" $(for i in $(seq 1 $(({} / 8))); do echo -n "255."; done; rem=$(({} % 8)); if [ $rem -gt 0 ]; then echo -n $((255 - (255 >> $rem))); for i in $(seq $rem 7); do echo -n ".0"; done; else echo ""; fi)' | sed 's/\.$//')
+# IP_ADDR=$(echo "$IN_BAND_IP" | cut -d/ -f1)
+# cat <<EOF >> /etc/network/interfaces
+# 
+# auto enp0s5
+# iface enp0s5 inet static
+#     address $IP_ADDR
+#     netmask $NETMASK
+#     gateway $GATEWAY
+#     dns-nameservers $DNS_SERVERS
+# EOF
+# ifdown enp0s5 && ifup enp0s5
+# ip addr show enp0s5
+# ping -c 3 "$GATEWAY"
 
-# Configure networking (skip if IP matches)
-CURRENT_IN_BAND_IP=$(ip addr show $IN_BAND_IF | grep -o 'inet [0-9.]\+/[0-9]\+' | awk '{print $2}' || true)
-if [ "$CURRENT_IN_BAND_IP" = "$IN_BAND_IP" ]; then
-    echo "Network IP already set correctly. Skipping networking changes."
-else
-    cat <<EOF > /etc/network/interfaces
-# The loopback network interface
-auto lo
-iface lo inet loopback
+# # Section 4: Install base utilities
+# apt install -y --no-install-recommends git nvim htop rsync curl wget net-tools sudo tmux sysstat iotop tcpdump nmap logwatch fail2ban
+# usermod -aG sudo "$MONITOR_USER"
 
-# In-band
-auto $IN_BAND_IF
-iface $IN_BAND_IF inet static
-    address ${IN_BAND_IP%/*}
-    netmask ${IN_BAND_IP#*/}
-    gateway $GATEWAY
-    dns-nameservers $GATEWAY 8.8.8.8
-EOF
-    if ip link show wlan0 &>/dev/null; then
-        echo "iface wlan0 inet manual" >> /etc/network/interfaces
-    fi
-    systemctl restart networking
-fi
+# # Section 5: Configure security basics
+# apt install -y ufw
+# ufw allow OpenSSH
+# ufw allow 80/tcp
+# ufw --force enable
+# sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+# systemctl restart ssh
 
-# Update repositories
-cat <<EOF > /etc/apt/sources.list
-deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
-deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
-EOF
-apt update
+# # Section 6: Set timezone and locale
+# timedatectl set-timezone "$TIMEZONE"
+# locale-gen en_US.UTF-8
+# update-locale LANG=en_US.UTF-8
 
-# Packages (optional firmware/snmp)
-apt install -y vim curl wget net-tools htop chrony ufw snmp tcpdump sysstat arp-scan systemd-resolved tftpd-hpa cockpit logrotate netcat-traditional
-apt install -y firmware-linux-nonfree-misc || echo "Warning: firmware-linux-nonfree-misc not available, continuing."
-apt install -y snmp-mibs-downloader || echo "Warning: snmp-mibs-downloader not available, skipping."
+# # Section 7: Final checks and cleanup
+# echo "Phase 1 setup complete: $(date)"
+# touch "/home/$MONITOR_USER/[PHASE1_SETUP_SUCCESS_20250831]"
+# echo "Reboot suggested; test connectivity post-reboot."
 
-# Authentication
-if ! id $MONITOR_USER &>/dev/null; then
-    useradd -m -s /bin/bash $MONITOR_USER
-    echo "$MONITOR_USER:$MONITOR_PASS" | chpasswd
-fi
-su - $MONITOR_USER -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-if [ ! -f /home/$MONITOR_USER/.ssh/id_ed25519 ]; then
-    su - $MONITOR_USER -c "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N '' -C '$MONITOR_USER@server'"
-fi
-if [ -n "$PUBLIC_SSH_KEY" ]; then
-    echo "$PUBLIC_SSH_KEY" >> /home/$MONITOR_USER/.ssh/authorized_keys
-    chmod 600 /home/$MONITOR_USER/.ssh/authorized_keys
-    chown $MONITOR_USER:$MONITOR_USER /home/$MONITOR_USER/.ssh/authorized_keys
-fi
-usermod -aG cockpit $MONITOR_USER
-
-# Tailscale
-curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian trixie main" | tee /etc/apt/sources.list.d/tailscale.list
-apt update && apt install -y tailscale
-systemctl enable --now systemd-resolved
-ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
-sysctl -w net.ipv4.ip_forward=1
-echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-if [ -n "$TAILSCALE_AUTHKEY" ]; then
-    tailscale up --auth-key=$TAILSCALE_AUTHKEY --advertise-routes=$TAILSCALE_SUBNET --accept-dns=false
-else
-    echo "Run 'tailscale up --advertise-routes=$TAILSCALE_SUBNET --accept-dns=false' manually."
-fi
-
-# TFTP
-mkdir -p /srv/tftp
-chown -R tftp:tftp /srv/tftp
-sed -i 's|^TFTP_DIRECTORY=.*|TFTP_DIRECTORY="/srv/tftp"|' /etc/default/tftpd-hpa
-sed -i 's|^TFTP_OPTIONS=.*|TFTP_OPTIONS="--secure"|' /etc/default/tftpd-hpa
-systemctl restart tftpd-hpa
-
-# Cockpit
-systemctl enable --now cockpit.socket
-
-# Firewall
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow 22/tcp
-ufw allow 161/udp
-ufw allow 162/udp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow 9000/tcp
-ufw allow 41641/udp
-ufw allow 3478/udp
-ufw allow 443/tcp
-ufw allow 9090/tcp
-ufw enable -y
-
-# LVM (adjusts /var/log/graylog if needed)
-if ! grep -q "/var/log/graylog" /etc/fstab; then
-    if ! lvs | grep -q graylog_logs; then
-        DISK=$(lsblk -dno NAME | grep -E 'sda|nvme0n1' | head -n1)
-        if [ -z "$DISK" ]; then
-            echo "Error: No suitable disk (sda/nvme0n1) found for LVM."
-            exit 1
-        fi
-        if ! pvs | grep -q "/dev/$DISK"; then
-            pvcreate /dev/$DISK || true
-        fi
-        vgcreate vg0 /dev/$DISK || true
-        lvcreate -L $GRAYLOG_LOG_SIZE -n graylog_logs vg0 || true
-        mkfs.ext4 /dev/vg0/graylog_logs
-        mkdir -p /var/log/graylog
-        echo "/dev/mapper/vg0-graylog_logs /var/log/graylog ext4 defaults 0 2" >> /etc/fstab
-        mount /var/log/graylog
-    fi
-fi
-
-# Logrotate
-cat <<EOF > /etc/logrotate.d/system-logs
-/var/log/syslog /var/log/messages {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    create 640 root adm
-    sharedscripts
-    postrotate
-        invoke-rc.d rsyslog rotate > /dev/null
-    endscript
-}
-EOF
-
-echo "Phase 1 setup complete. Reboot recommended."
+# exit 0  # Commented; actual exit after active sections.
+exit 0
