@@ -10,25 +10,39 @@ export OOB_IP="10.211.55.2/24"            # OOB IP (Parallels Shared; TBD for In
 export GATEWAY="192.168.99.1"             # pfSense gateway
 export DNS_SERVERS="192.168.99.1 8.8.8.8"  # Space-separated list of IPv4 addresses; primary first, fallback(s) next. Use local (e.g., pfSense gateway) if available for lower latency; public like 8.8.8.8/8.8.4.4 (Google) or 1.1.1.1 (Cloudflare) as backups.
 export DNS_SEARCH="mydomain.local"        # Update this to the local search domain
+
 export MONITOR_USER="monitor"             # Consistent user
 export MONITOR_PASS="FuseFuse123!"        # Temporary password, change post-setup
+
 export PUBLIC_SSH_KEY=""                  # Replace with: cat /Users/bob/.ssh/id_bob_ed25519.pub
 export TAILSCALE_AUTHKEY=""               # Replace with Tailscale key from https://login.tailscale.com/admin/settings/keys
+
 export TAILSCALE_SUBNET="192.168.99.0/24" # Subnet to advertise
+
 export GRAYLOG_LOG_SIZE="50G"             # LVM size for /var/log/graylog
+
 export HOSTNAME="monitor-server"          # Server hostname
 export DOMAIN="eastpointe.local"          # Domain (optional)
+
 export TIMEZONE="UTC"                     # Timezone
 export LOCALE="en_US.UTF-8"               # Locale
 
+export FUSESYSTEM=""                      # the color code of the system/network (green, red, blue, etc.)
+
 # Future Phases (Prometheus, Grafana, Graylog, Ansible, Nginx)
 export PROMETHEUS_PORT="9090"             # Prometheus default port
+
 export GRAFANA_PORT="3000"                # Grafana default port
 export GRAYLOG_PORT="9000"                # Graylog default port
+
 export NGINX_PORT_HTTP="80"               # Nginx HTTP
 export NGINX_PORT_HTTPS="443"             # Nginx HTTPS
+
 export ANSIBLE_INVENTORY_PATH="/etc/ansible/hosts"  # Ansible inventory file
+
 export M4300_INBAND_IP="192.168.99.3"     # M4300 in-band IP
 export M4300_OOB_IP="192.168.99.4"        # M4300 OOB IP
+
 export PFSENSE_IP="192.168.99.1"          # pfSense IP
+
 export SNMP_COMMUNITY="public"            # SNMP community string (Phase 4)

@@ -39,7 +39,7 @@ else
 fi
 
 # Files to sync (expand array for future phases)
-FILES=("phase1_setup.sh" "config.sh")
+FILES=("phase1_setup.sh" "phase2_setup.sh" "config.sh")
 
 # Sync files
 if [ "$DRY_RUN" = "--dry-run" ]; then
