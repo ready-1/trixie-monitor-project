@@ -2,9 +2,9 @@
 # phase1_setup.sh: Configures Debian 13.0.0 (Trixie) for Phase 1 monitoring
 # Purpose: Set up networking, packages, Tailscale, Cockpit, TFTP, UFW, LVM, logrotate
 # Usage: sudo ./phase1_setup.sh
-# Breadcrumb: [PHASE1_SETUP_SH_20250830] Updated for Trixie, single NIC, config.sh
+# Breadcrumb: [PHASE1_SETUP_SH_UPDATED_20250830] Updated for MONITOR_USER=monitor, single NIC
 # Requirements: Debian 13.0.0, root access, x86_64, config.sh in same dir
-# Notes: Idempotent, sources config.sh, optional packages
+# Notes: Idempotent, sources config.sh, optional packages, single NIC
 
 set -e
 
