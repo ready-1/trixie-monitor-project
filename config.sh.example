@@ -8,7 +8,7 @@
 export IN_BAND_IP="192.168.99.91/24"      # In-band IP (VM/Server 1; 192.168.99.92/24 for Server 2)
 export OOB_IP="10.211.55.2/24"            # OOB IP (Parallels Shared; TBD for Intel)
 export GATEWAY="192.168.99.1"             # pfSense gateway
-export MONITOR_USER="fuse"                # Consistent user (was monitor)
+export MONITOR_USER="monitor"             # Consistent user
 export MONITOR_PASS="FuseFuse123!"        # Temporary password, change post-setup
 export PUBLIC_SSH_KEY=""                  # Replace with: cat /Users/bob/.ssh/id_bob_ed25519.pub
 export TAILSCALE_AUTHKEY=""               # Replace with Tailscale key from https://login.tailscale.com/admin/settings/keys
