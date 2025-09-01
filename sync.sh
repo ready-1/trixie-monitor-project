@@ -53,4 +53,4 @@ else
     done
 fi
 
-echo "Sync to $TARGET_IP completed."
+echo "Sync to $TARGET_IP completed $(date)."
