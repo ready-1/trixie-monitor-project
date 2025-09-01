@@ -30,10 +30,9 @@ ansible-galaxy collection list  # PoL: Verify installed versions
 # requirements.yml: collections: - name: community.network version: ">=5.0.0" - name: community.general
 
 # Section 3: Vault for Creds (Uncomment later)
-# mkdir -p ansible
-# ansible-vault create ansible/secrets.yaml --vault-id dev@prompt  # Pass; add: ansible_ssh_pass: ""
-# chmod 600 ansible/secrets.yaml
-# echo "ansible/secrets.yaml" >> .gitignore
+ansible-vault create ansible/secrets.yaml --vault-id dev@prompt  # Pass; add: ansible_ssh_pass: ""
+chmod 600 ansible/secrets.yaml
+echo "ansible/secrets.yaml" >> .gitignore
 
 # Section 4: Template ansible.cfg (Uncomment later)
 # mkdir -p /etc/ansible
