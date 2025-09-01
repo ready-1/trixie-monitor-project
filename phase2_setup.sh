@@ -60,9 +60,9 @@ EOF"
 sudo chmod 644 /etc/ansible/ansible.cfg # World-readable (secure for config; best practice)
 
 
-# Section 5: Template Inventory/Subnets/Vars (Active - Rerun; share yamllint and ansible-inventory --list output post-fix)
+# Section 5: Template Inventory/Subnets/Vars (Active - Rerun for fix; then Section 6)
 mkdir -p ansible/{inventories,group_vars/$FUSESYSTEM,group_vars/all,templates}  # User-owned
-cat <<EOF > ansible/templates/inventory.yaml.tmpl  # Fixed: Shortened comment
+cat <<EOF > ansible/templates/inventory.yaml.tmpl  # Fixed: Added 'hosts:' under groups per docs
 ---
 all:
   children:
@@ -74,11 +74,13 @@ all:
     network_devices: {}  # pfSense/NAS stubs
     internal_hosts: {}  # Video router/clock; ping
     external_hosts:
-      google_dns:
-        ansible_host: "8.8.8.8"
-        monitoring: {type: icmp}  # PoL stub
+      hosts:
+        google_dns:
+          ansible_host: "8.8.8.8"
+          monitoring: {type: icmp}  # PoL stub
     support_infra:
-      monitor_server: {ansible_connection: local}  # UPS/server
+      hosts:
+        monitor_server: {ansible_connection: local}  # UPS/server
   vars:
     ansible_network_os: community.network.netgear_mseries  # Compat fallback
 EOF
@@ -106,11 +108,14 @@ port_profiles:
 EOF
 yamllint ansible/inventories/$FUSESYSTEM.yaml  # Validate; expect clean
 
-
-
-
-# Section 6: Test Ping (Uncomment last)
-# ansible-playbook --vault-id dev@prompt -i ansible/inventories/\$FUSESYSTEM.yaml ansible/playbooks/test.yaml
-# # test.yaml: - hosts: support_infra tasks: - ansible.builtin.ping:
+# Section 6: Test Ping (Uncomment after Section 5 rerun)
+mkdir -p ansible/playbooks
+cat <<EOF > ansible/playbooks/test.yaml
+- hosts: support_infra
+  gather_facts: false  # Fix facts error for local host
+  tasks:
+    - ansible.builtin.ping:
+EOF
+ansible-playbook --vault-id dev@prompt ansible/playbooks/test.yaml  # Local PoL; expect success
 
 # Git: git add . && git commit -m "Phase2: Section 1 complete; devlab set"
