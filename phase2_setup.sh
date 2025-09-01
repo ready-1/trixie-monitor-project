@@ -30,9 +30,22 @@ ansible-galaxy collection list  # PoL: Verify installed versions
 # requirements.yml: collections: - name: community.network version: ">=5.0.0" - name: community.general
 
 # Section 3: Vault for Creds (Uncomment later)
-ansible-vault create ansible/secrets.yaml --vault-id dev@prompt  # Pass; add: ansible_ssh_pass: ""
-chmod 600 ansible/secrets.yaml
 echo "ansible/secrets.yaml" >> .gitignore
+
+# create stubs for snmp and ansible_ssh
+TEMP_FILE=$(mktemp)
+echo "snmp_user: monitor  # Read-only user" >> $TEMP_FILE
+echo "snmp_auth_proto: sha512  # Auth protocol" >> $TEMP_FILE
+echo "snmp_auth_pass: \"$MONITOR_PASS\"  # Vaulted; 8-32 chars" >> $TEMP_FILE
+echo "snmp_priv_proto: aes128  # Priv protocol" >> $TEMP_FILE
+echo "snmp_priv_pass: \"$MONITOR_PASS\"  # Vaulted; 8-32 chars" >> $TEMP_FILE
+echo "ansible_ssh_pass: \"\"" >> $TEMP_FILE
+ansible-vault encrypt $TEMP_FILE --vault-id dev@prompt  # Encrypt temp (prompt pw)
+mv $TEMP_FILE ansible/secrets.yaml  # Overwrite original
+rm -f $TEMP_FILE  # Cleanup
+chmod 600 ansible/secrets.yaml
+
+
 
 # Section 4: Template ansible.cfg (Uncomment later)
 USER_HOME="/home/monitor"
@@ -46,17 +59,55 @@ host_key_checking = False  # Devlab initial; assume M4300-52G-PoE+ 12.0.19.6 qui
 EOF"
 sudo chmod 644 /etc/ansible/ansible.cfg # World-readable (secure for config; best practice)
 
-# Section 5: Template Inventory (Uncomment later - devlab stubs)
-# mkdir -p ansible/inventories templates
-# cat <<EOF > templates/inventory.yaml.tmpl
-# all:
-#   children:
-#     switches:
-#       hosts:
-#         sw-eng-test: {ansible_host: "192.168.99.94", ansible_ssh_pass: "{{ ansible_ssh_pass }}"}  # Devlab stub
-#     # Other groups...
-# EOF
-# envsubst < templates/inventory.yaml.tmpl > ansible/inventories/\$FUSESYSTEM.yaml
+
+# Section 5: Template Inventory/Subnets/Vars (Active - Rerun; share yamllint and ansible-inventory --list output post-fix)
+mkdir -p ansible/{inventories,group_vars/$FUSESYSTEM,group_vars/all,templates}  # User-owned
+cat <<EOF > ansible/templates/inventory.yaml.tmpl  # Fixed: Shortened comment
+---
+all:
+  children:
+    switches:
+      hosts:
+        sw-eng-test:
+          ansible_host: "192.168.99.94"
+          ansible_ssh_pass: "{{ ansible_ssh_pass }}"  # Devlab stub; vault var
+    network_devices: {}  # pfSense/NAS stubs
+    internal_hosts: {}  # Video router/clock; ping
+    external_hosts:
+      google_dns:
+        ansible_host: "8.8.8.8"
+        monitoring: {type: icmp}  # PoL stub
+    support_infra:
+      monitor_server: {ansible_connection: local}  # UPS/server
+  vars:
+    ansible_network_os: community.network.netgear_mseries  # Compat fallback
+EOF
+if [ -f "ansible/templates/inventory.yaml.tmpl" ]; then
+  envsubst < ansible/templates/inventory.yaml.tmpl > ansible/inventories/$FUSESYSTEM.yaml
+else
+  echo "Error: templates/inventory.yaml.tmpl not found (rerun cat block)"
+  exit 1
+fi
+# Stub group_vars/$FUSESYSTEM/subnets.yaml (short; no fix needed)
+cat <<EOF > ansible/group_vars/$FUSESYSTEM/subnets.yaml
+in_band: "192.168.99.0/24"  # Devlab
+oob: "172.31.29.0/24"  # Override for green
+transit: "172.31.0.4/30"
+EOF
+# Stub group_vars/all/port_profiles.yaml (short; no fix needed)
+cat <<EOF > ansible/group_vars/all/port_profiles.yaml
+port_profiles:
+  default_data:
+    mode: access
+    vlan: 1  # Placeholder
+    description: "Standard Data Port"
+    spanning_tree: portfast
+    multicast: igmp_snooping
+EOF
+yamllint ansible/inventories/$FUSESYSTEM.yaml  # Validate; expect clean
+
+
+
 
 # Section 6: Test Ping (Uncomment last)
 # ansible-playbook --vault-id dev@prompt -i ansible/inventories/\$FUSESYSTEM.yaml ansible/playbooks/test.yaml
