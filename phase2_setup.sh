@@ -35,13 +35,16 @@ chmod 600 ansible/secrets.yaml
 echo "ansible/secrets.yaml" >> .gitignore
 
 # Section 4: Template ansible.cfg (Uncomment later)
-# mkdir -p /etc/ansible
-# cat <<EOF > /etc/ansible/ansible.cfg
-# [defaults]
-# inventory = /home/monitor/ansible/inventories/\$FUSESYSTEM.yaml
-# host_key_checking = False
-# EOF
-# chmod 600 /etc/ansible/ansible.cfg
+USER_HOME="/home/monitor"
+if [ ! -d "/etc/ansible" ]; then
+  sudo mkdir -p /etc/ansible  # Sudo for perms; idempotent check
+fi
+sudo bash -c "cat <<EOF > /etc/ansible/ansible.cfg
+[defaults]
+inventory = $USER_HOME/ansible/inventories/$FUSESYSTEM.yaml
+host_key_checking = False  # Devlab initial; assume M4300-52G-PoE+ 12.0.19.6 quirks
+EOF"
+sudo chmod 644 /etc/ansible/ansible.cfg # World-readable (secure for config; best practice)
 
 # Section 5: Template Inventory (Uncomment later - devlab stubs)
 # mkdir -p ansible/inventories templates
