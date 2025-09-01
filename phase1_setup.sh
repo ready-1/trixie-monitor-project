@@ -50,7 +50,7 @@ apt clean
 if command -v nvim >/dev/null 2>&1 && command -v fail2ban-client >/dev/null 2>&1; then
     echo "Base utilities already installed; skipping."
 else
-    apt install -y --no-install-recommends ifupdown rsyslog git neovim htop rsync curl wget net-tools sudo tmux sysstat iotop tcpdump nmap logwatch fail2ban
+    apt install -y --no-install-recommends ifupdown rsyslog git neovim htop rsync curl wget net-tools sudo tmux sysstat iotop tcpdump nmap logwatch fail2ban yamllint
     usermod -aG sudo "$MONITOR_USER"
     # Post-fail2ban config if installed
     if command -v fail2ban-client >/dev/null 2>&1; then
