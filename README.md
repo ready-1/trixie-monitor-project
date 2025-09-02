@@ -7,3 +7,4 @@ Step 5: Added SSH key, synced scripts, did not run phase1_setup.sh regardless of
 
 Step 5: Added SSH key, synced scripts, ran phase1_setup.sh
 Step 5: Added SSH key, synced scripts, ran phase1_setup.sh
+Step 5: Added SSH key, synced scripts, ran phase1_setup.sh
