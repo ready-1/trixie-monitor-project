@@ -6,3 +6,4 @@ Step 4: Installed Debian Trixie with LVM and SSH, DHCP IP, user monitor
 Step 5: Added SSH key, synced scripts, did not run phase1_setup.sh regardless of git commit message  :-)
 
 Step 5: Added SSH key, synced scripts, ran phase1_setup.sh
+Step 5: Added SSH key, synced scripts, ran phase1_setup.sh
