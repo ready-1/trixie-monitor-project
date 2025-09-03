@@ -1,6 +1,6 @@
 # local adds
-config.sh
 .env
 *.env
 trixie-iso/
+load_secrets.sh
 
