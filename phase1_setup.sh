@@ -2,7 +2,7 @@
 
 # phase1_setup.sh
 # Purpose: Perform base server setup on Debian Trixie VM for monitoring (Phase 1).
-# Assumes: Run as root via SSH; config.sh in /home/monitor/ with exported vars (e.g., export TIMEZONE="UTC").
+# Assumes: Run as root via SSH; config.sh in /home/$MONITOR_USER/ with exported vars (e.g., export TIMEZONE="UTC").
 # Workflow: Full script—network config defers to reboot; fixes applied.
 # Best practices: Idempotent; logging; checks. ifupdown for networking (Trixie minimal default).
 # Research: Trixie static IP via /etc/network/interfaces (ifupdown); sed handles 'allow-hotplug'; reboot applies. Fail2ban needs rsyslog pre-install, backend=systemd config. sshd_config sed handles #; ensure ifupdown installed; networking sed adds auto if missing.
@@ -11,11 +11,12 @@
 # Documentation: Inline; README.md: Run over SSH, reboot applies IP; troubleshoot fail2ban with journalctl -u fail2ban (jail is 'sshd').
 # Potential issues: IP fail—wrong iface name (enp0s5? confirm ip link); DHCP persist—purge isc-dhcp-client. Fail2ban fail—check apt logs (/var/log/apt/history.log), journalctl.
 # Questions: /etc/network/interfaces contents? apt install fail2ban errors? journalctl -u fail2ban? Swap (swapon -s)? TIMEZONE to America/New_York? Phase 2 Ansible?
+# Breadcrumb: [PHASE1_HOME_DIR_FIX_20250903] Use $MONITOR_USER for home paths.
 
 # Section 1: Initialize environment
 set -euo pipefail
+MONITOR_USER="monitor"  # Hardcoded fallback; overridden by config.sh if differs.
 if [ "$(id -u)" -ne 0 ]; then echo "Must run as root"; exit 1; fi
-MONITOR_USER="monitor"  # Hardcoded for bootstrap; overridden by config.sh if differs.
 . /etc/os-release  # Source for VERSION_CODENAME.
 if [ "${VERSION_CODENAME}" != "trixie" ]; then echo "Not Trixie"; exit 1; fi
 source "/home/$MONITOR_USER/config.sh"
@@ -31,6 +32,26 @@ echo "TIMEZONE: $TIMEZONE"
 echo "DNS_SERVERS: $DNS_SERVERS"
 # Add more as needed, e.g., echo "GRAYLOG_LOG_SIZE: $GRAYLOG_LOG_SIZE"
 df -h | grep -E '/var|/srv|/root|/swap' || true  # Log LVM mounts; non-fatal.
+
+# Prod: Extend /var LV if MONITOR_ENV=PRODUCTION and space low
+VAR_LV="/dev/monitor-server-vg/var"
+VAR_MAPPER="/dev/mapper/monitor--server--vg-var"
+REQUIRED_MB=10000  # 10G total for prod (journal 10G + buffers)
+CURRENT_MB=$(df -m /var | tail -1 | awk '{print $2}')
+VG_FREE_MB=$(sudo vgs --units m --noheadings -o vg_free | tr -d ' ' | sed 's/m$//')
+
+case "$MONITOR_ENV" in
+  PRODUCTION)
+    if [ "$CURRENT_MB" -lt "$REQUIRED_MB" ] && [ "$VG_FREE_MB" -ge $((REQUIRED_MB - CURRENT_MB)) ]; then
+      EXTEND_MB=$((REQUIRED_MB - CURRENT_MB))
+      sudo lvextend -L +${EXTEND_MB}M "$VAR_LV"
+      sudo resize2fs "$VAR_MAPPER"
+      echo "Extended /var to ~10G for prod."
+    elif [ "$VG_FREE_MB" -lt $((REQUIRED_MB - CURRENT_MB)) ]; then
+      echo "Warning: Insufficient VG space ($VG_FREE_MB MB free) for prod extend. Add disk."
+    fi
+    ;;
+esac
 
 # Section 2: System update and upgrade
 echo "Checking internet connectivity..."

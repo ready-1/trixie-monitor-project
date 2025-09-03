@@ -1,15 +1,27 @@
 #!/bin/bash
-set -euo pipefail
+# phase2_setup.sh
+# Purpose: Setup Ansible for device inventory and server management (Phase 2).
+# Assumes: Run as $MONITOR_USER; config.sh in /home/$MONITOR_USER/ with exported vars (e.g., FUSESYSTEM).
+# Breadcrumb: [PHASE2_HOME_DIR_FIX_20250903] Use $USER_HOME=/home/$MONITOR_USER across script.
+# Research: Ansible-core 2.19 stable for Debian Trixie; community.network for Netgear M4300. Vault for creds.
+# Best Practice: Pin versions, idempotent, user-owned Ansible configs.
+# Compatibility: No breaks with Graylog/Prometheus/Grafana. M4300 SNMPv3 via community.network.
+# Idempotency: Checks skip done parts.
+# Usage: ./phase2_setup.sh
 
-# Persistence Fix: Use full path for user home (idempotent; avoids sudo HOME=/root issues)
-USER_HOME="/home/monitor"
+set -euo pipefail
+MONITOR_USER="monitor"  # Hardcoded fallback; overridden by config.sh
+source /home/$MONITOR_USER/config.sh  # Load early to get MONITOR_USER, FUSESYSTEM
+USER_HOME="/home/$MONITOR_USER"
+
+# Persistence Fix: Source config.sh in .bashrc (idempotent)
 if ! grep -q "source $USER_HOME/config.sh" $USER_HOME/.bashrc; then
   echo "source $USER_HOME/config.sh" >> $USER_HOME/.bashrc
 fi
 source $USER_HOME/.bashrc  # Apply; loads exported FUSESYSTEM="devlab", etc.
 echo $FUSESYSTEM  # Verify in output: "devlab"
 
-# Section 1: Install/Pin Ansible-Core (Active - Run; share ansible --version ~2.19.0)
+# Section 1: Install/Pin Ansible-Core
 sudo apt update
 if ! dpkg -l | grep -q ansible-core; then
   sudo apt install -y ansible-core
@@ -17,22 +29,22 @@ if ! dpkg -l | grep -q ansible-core; then
 fi
 ansible --version  # PoL
 
-# Section 2: Install Collections (Uncomment post-Section 1)
-mkdir -p ansible
-cat <<EOF > ansible/requirements.yml
+# Section 2: Install Collections
+mkdir -p $USER_HOME/ansible
+cat <<EOF > $USER_HOME/ansible/requirements.yml
 collections:
   - name: community.network
     version: ">=5.0.0"  # Pin for replicability; assume CLI fallback compat issues
   - name: community.general
 EOF
-ansible-galaxy collection install -r ansible/requirements.yml  # Install; verbose: add -vvv if errors
+ansible-galaxy collection install -r $USER_HOME/ansible/requirements.yml  # Install; verbose: add -vvv if errors
 ansible-galaxy collection list  # PoL: Verify installed versions
 # requirements.yml: collections: - name: community.network version: ">=5.0.0" - name: community.general
 
-# Section 3: Vault for Creds (Uncomment later)
-echo "ansible/secrets.yaml" >> .gitignore
+# Section 3: Vault for Creds
+echo "$USER_HOME/ansible/secrets.yaml" >> $USER_HOME/.gitignore
 
-# create stubs for snmp and ansible_ssh
+# Create stubs for snmp and ansible_ssh
 TEMP_FILE=$(mktemp)
 echo "snmp_user: monitor  # Read-only user" >> $TEMP_FILE
 echo "snmp_auth_proto: sha512  # Auth protocol" >> $TEMP_FILE
@@ -41,14 +53,11 @@ echo "snmp_priv_proto: aes128  # Priv protocol" >> $TEMP_FILE
 echo "snmp_priv_pass: \"$MONITOR_PASS\"  # Vaulted; 8-32 chars" >> $TEMP_FILE
 echo "ansible_ssh_pass: \"\"" >> $TEMP_FILE
 ansible-vault encrypt $TEMP_FILE --vault-id dev@prompt  # Encrypt temp (prompt pw)
-mv $TEMP_FILE ansible/secrets.yaml  # Overwrite original
+mv $TEMP_FILE $USER_HOME/ansible/secrets.yaml  # Overwrite original
 rm -f $TEMP_FILE  # Cleanup
-chmod 600 ansible/secrets.yaml
+chmod 600 $USER_HOME/ansible/secrets.yaml
 
-
-
-# Section 4: Template ansible.cfg (Uncomment later)
-USER_HOME="/home/monitor"
+# Section 4: Template ansible.cfg
 if [ ! -d "/etc/ansible" ]; then
   sudo mkdir -p /etc/ansible  # Sudo for perms; idempotent check
 fi
@@ -59,10 +68,9 @@ host_key_checking = False  # Devlab initial; assume M4300-52G-PoE+ 12.0.19.6 qui
 EOF"
 sudo chmod 644 /etc/ansible/ansible.cfg # World-readable (secure for config; best practice)
 
-
-# Section 5: Template Inventory/Subnets/Vars (Active - Rerun for fix; then Section 6)
-mkdir -p ansible/{inventories,group_vars/$FUSESYSTEM,group_vars/all,templates}  # User-owned
-cat <<EOF > ansible/templates/inventory.yaml.tmpl  # Fixed: Added 'hosts:' under groups per docs
+# Section 5: Template Inventory/Subnets/Vars
+mkdir -p $USER_HOME/ansible/{inventories,group_vars/$FUSESYSTEM,group_vars/all,templates}  # User-owned
+cat <<EOF > $USER_HOME/ansible/templates/inventory.yaml.tmpl
 ---
 all:
   children:
@@ -84,20 +92,20 @@ all:
   vars:
     ansible_network_os: community.network.netgear_mseries  # Compat fallback
 EOF
-if [ -f "ansible/templates/inventory.yaml.tmpl" ]; then
-  envsubst < ansible/templates/inventory.yaml.tmpl > ansible/inventories/$FUSESYSTEM.yaml
+if [ -f "$USER_HOME/ansible/templates/inventory.yaml.tmpl" ]; then
+  envsubst < $USER_HOME/ansible/templates/inventory.yaml.tmpl > $USER_HOME/ansible/inventories/$FUSESYSTEM.yaml
 else
   echo "Error: templates/inventory.yaml.tmpl not found (rerun cat block)"
   exit 1
 fi
-# Stub group_vars/$FUSESYSTEM/subnets.yaml (short; no fix needed)
-cat <<EOF > ansible/group_vars/$FUSESYSTEM/subnets.yaml
+# Stub group_vars/$FUSESYSTEM/subnets.yaml
+cat <<EOF > $USER_HOME/ansible/group_vars/$FUSESYSTEM/subnets.yaml
 in_band: "192.168.99.0/24"  # Devlab
 oob: "172.31.29.0/24"  # Override for green
 transit: "172.31.0.4/30"
 EOF
-# Stub group_vars/all/port_profiles.yaml (short; no fix needed)
-cat <<EOF > ansible/group_vars/all/port_profiles.yaml
+# Stub group_vars/all/port_profiles.yaml
+cat <<EOF > $USER_HOME/ansible/group_vars/all/port_profiles.yaml
 port_profiles:
   default_data:
     mode: access
@@ -106,16 +114,16 @@ port_profiles:
     spanning_tree: portfast
     multicast: igmp_snooping
 EOF
-yamllint ansible/inventories/$FUSESYSTEM.yaml  # Validate; expect clean
+yamllint $USER_HOME/ansible/inventories/$FUSESYSTEM.yaml  # Validate; expect clean
 
-# Section 6: Test Ping (Uncomment after Section 5 rerun)
-mkdir -p ansible/playbooks
-cat <<EOF > ansible/playbooks/test.yaml
+# Section 6: Test Ping
+mkdir -p $USER_HOME/ansible/playbooks
+cat <<EOF > $USER_HOME/ansible/playbooks/test.yaml
 - hosts: support_infra
   gather_facts: false  # Fix facts error for local host
   tasks:
     - ansible.builtin.ping:
 EOF
-ansible-playbook --vault-id dev@prompt ansible/playbooks/test.yaml  # Local PoL; expect success
+ansible-playbook --vault-id dev@prompt $USER_HOME/ansible/playbooks/test.yaml  # Local PoL; expect success
 
 # Git: git add . && git commit -m "Phase2: Section 1 complete; devlab set"

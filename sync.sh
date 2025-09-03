@@ -9,6 +9,8 @@
 
 set -e
 
+clear
+
 SCP="scp"  # System scp on PATH
 
 SSH_COPY_ID="ssh-copy-id"  # Assume on PATH
@@ -39,7 +41,7 @@ else
 fi
 
 # Files to sync (expand array for future phases)
-FILES=("phase1_setup.sh" "phase2_setup.sh" "config.sh")
+FILES=("phase1_setup.sh" "phase2_setup.sh" "phase3_setup.sh" "config.sh" "sudoit.sh" "doit.sh" "m4300-cli-manual-repaired.pdf" "phase3_graylog_journal_fix.sh")
 
 # Sync files
 if [ "$DRY_RUN" = "--dry-run" ]; then

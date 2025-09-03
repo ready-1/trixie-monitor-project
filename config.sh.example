@@ -2,7 +2,7 @@
 # config.sh: Environment variables for phase1_setup.sh and future phases
 # Purpose: Modular configuration for Debian Trixie server setup
 # Breadcrumb: [PHASE1_CONFIG_SH_20250830] Initial template with placeholders
-# Notes: Source in phase1_setup.sh, add to .gitignore, vars ephemeral
+# Breadcrumb: [CONFIG_HOME_DIR_FIX_20250903] No changes needed; MONITOR_USER exported for use in scripts.
 
 # Phase 1: Base Server
 export IN_BAND_IP="192.168.99.91/24"      # In-band IP (VM/Server 1; 192.168.99.92/24 for Server 2)
@@ -46,3 +46,20 @@ export M4300_OOB_IP="192.168.99.4"        # M4300 OOB IP
 export PFSENSE_IP="192.168.99.1"          # pfSense IP
 
 export SNMP_COMMUNITY="public"            # SNMP community string (Phase 4)
+
+export MONITOR_ENV="DEV"  # DEV/TEST/PRODUCTION; controls sizes (e.g., journal/heap)
+
+# Conditional overrides (expand as needed)
+case "$MONITOR_ENV" in
+  PRODUCTION)
+    GRAYLOG_JOURNAL_SIZE="10G"  # Prod: Larger for buffers; assumes LVM extend
+    GRAYLOG_HEAP_SIZE="4g"      # Prod: 25-50% RAM; min 4G for stability
+    ;;
+  *)
+    GRAYLOG_JOURNAL_SIZE="2G"   # Dev/Test: Fit low space
+    GRAYLOG_HEAP_SIZE="1g"      # Dev/Test: Minimal
+    ;;
+esac
+
+export GRAYLOG_JOURNAL_SIZE  # Export for scripts
+export GRAYLOG_HEAP_SIZE     # Export for scripts
