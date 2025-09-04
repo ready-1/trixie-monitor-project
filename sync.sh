@@ -15,10 +15,13 @@ clear
 source sshkeys
 
 echo -e "=====\npushing to git..."
-git add .
-git commit -m "Automated commit and push for server sync at $(date '+%Y-%m-%d %H:%M:%S')"
-git push origin main
-
+if git status --porcelain | grep . >/dev/null; then
+  git add .
+  git commit -m "Auto commit $(date '+%Y-%m-%d %H:%M:%S')"
+  git push
+else
+  echo "Nothing to commit, continuing..."
+fi
 echo -e "=====\n"
 
 SCP="scp"  # System scp on PATH
