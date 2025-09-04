@@ -1,10 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 10:00 EDT | 1744044000]
+# Breadcrumb: [2025-09-04 10:10 EDT | 1744044600]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
 # Uses jammy for MongoDB repo; APT for OpenSearch and Graylog; post-install chown for Graylog.
-# Fixes Graylog startup with mongodb_uri and elasticsearch_hosts, API with retry loop, conffile prompt, MongoDB APT, sed error, and signature warnings (transient).
+# Fixes Graylog startup with journal/log permissions, API with retry loop, conffile prompt, MongoDB APT, sed error, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -119,6 +119,12 @@ echo "Installing Graylog $GRAYLOG_VERSION..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" graylog-server || { echo "Graylog installation failed; attempting to fix..."; dpkg --configure -a; apt-get install -f -y; }
 
+# Create and chown Graylog journal and log directories (fixes missing permissions)
+mkdir -p /var/lib/graylog-server/journal
+chown graylog:graylog /var/lib/graylog-server/journal
+mkdir -p /var/log/graylog-server
+chown graylog:graylog /var/log/graylog-server
+
 # Chown after install (user/group now exists)
 chown graylog:graylog "$GRAYLOG_CONF"
 chmod 600 "$GRAYLOG_CONF"
@@ -149,6 +155,7 @@ else
     echo "- Verify port 9000: netstat -tuln | grep 9000"
     echo "- Ensure MongoDB/OpenSearch: systemctl status mongod opensearch"
     echo "- Check /var space: df -h /var"
+    echo "- Check Graylog server log: cat /var/log/graylog-server/server.log | tail -n 50"
     exit 1
 fi
 
