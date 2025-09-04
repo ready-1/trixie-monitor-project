@@ -1,10 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:46 EDT | 1744043160]
+# Breadcrumb: [2025-09-04 09:53 EDT | 1744043580]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
 # Uses jammy for MongoDB repo; APT for OpenSearch and Graylog; post-install chown for Graylog.
-# Fixes Graylog API inaccessibility with retry loop, MongoDB APT, sed error, conffile prompt, and signature warnings (transient).
+# Fixes Graylog API with journal size (1GB), conffile prompt (DPkg::Options), MongoDB APT, sed error, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -108,13 +108,14 @@ http_publish_uri = http://192.168.99.91:9000/
 http_enable_cors = true
 http_max_header_size = 8192
 http_thread_pool_size = 16
+message_journal_max_size = 1g
 EOF
 chmod 644 "$GRAYLOG_CONF"  # Temporary; package will adjust
 
 # Install Graylog with noninteractive handling to avoid conffile prompt
 echo "Installing Graylog $GRAYLOG_VERSION..."
 export DEBIAN_FRONTEND=noninteractive
-apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" graylog-server || { echo "Graylog installation failed; attempting to fix..."; dpkg --configure -a; apt-get install -f -y; }
+apt-get install -y -o DPkg::Options::="--force-confdef" -o DPkg::Options::="--force-confold" graylog-server || { echo "Graylog installation failed; attempting to fix..."; dpkg --configure -a; apt-get install -f -y; }
 
 # Chown after install (user/group now exists)
 chown graylog:graylog "$GRAYLOG_CONF"
@@ -145,6 +146,7 @@ else
     echo "- Check Graylog logs: journalctl -u graylog-server -n 50"
     echo "- Verify port 9000: netstat -tuln | grep 9000"
     echo "- Ensure MongoDB/OpenSearch: systemctl status mongod opensearch"
+    echo "- Check /var space: df -h /var"
     exit 1
 fi
 
