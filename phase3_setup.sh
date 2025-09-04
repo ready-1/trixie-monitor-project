@@ -1,10 +1,10 @@
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:15 EDT | 1744041300]
+# Breadcrumb: [2025-09-04 09:30 EDT | 1744042200]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
 # Uses bookworm for MongoDB repo (Trixie unsupported); APT for OpenSearch; post-install chown for Graylog.
 # Fixes MongoDB 404, Graylog user creation, signature warnings (transient), and ensures Bash execution.
-# Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh`
+# Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
 set -e
