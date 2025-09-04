@@ -1,14 +1,20 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:30 EDT | 1744042200]
+# Breadcrumb: [2025-09-04 09:06 EDT | 1744040760]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
-# Uses bookworm for MongoDB repo (Trixie unsupported); APT for OpenSearch; post-install chown for Graylog.
-# Fixes MongoDB 404, Graylog user creation, signature warnings (transient), and ensures Bash execution.
+# Uses jammy for MongoDB repo (Trixie/bookworm unsupported for ARM64); APT for OpenSearch; post-install chown for Graylog.
+# Fixes shebang, MongoDB APT error, Graylog sed error, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
 set -e
+
+# Verify Bash is used
+if [ -z "$BASH_VERSION" ]; then
+    echo "Error: This script requires Bash. Run with 'bash $0' or ensure executable permissions."
+    exit 1
+fi
 
 # Detect architecture
 ARCH=$(dpkg --print-architecture)
@@ -24,7 +30,8 @@ OPENSEARCH_VERSION="2.11.1"  # Specific version; falls back to latest 2.x if una
 NGINX_CONF="/etc/nginx/sites-available/graylog"
 GRAYLOG_CONF="/etc/graylog/server/server.conf"
 REPO_URL="https://packages.graylog2.org/repo/packages/graylog-$GRAYLOG_VERSION-repository_latest.deb"
-MONGODB_DIST="bookworm"  # Fallback to bookworm (Trixie unsupported for MongoDB ARM64)
+MONGODB_DIST="jammy"  # Use Ubuntu jammy for MongoDB ARM64 (Trixie unsupported; bookworm failed)
+# Alternative: MONGODB_DIST="bookworm" (uncomment if jammy fails)
 
 # Log all output to file and console (Bash-specific)
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -62,12 +69,12 @@ systemctl daemon-reload
 systemctl enable opensearch
 systemctl start opensearch
 
-# Install MongoDB via APT repository (bookworm fallback for ARM64)
-echo "Installing MongoDB 7.0 via APT..."
+# Install MongoDB via APT repository (jammy for ARM64)
+echo "Installing MongoDB 7.0 via APT (jammy)..."
 curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg
-echo "deb [ arch=arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian $MONGODB_DIST/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+echo "deb [ arch=arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu $MONGODB_DIST/mongodb-org/7.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
 apt-get update
-apt-get install -y mongodb-org
+apt-get install -y mongodb-org || { echo "MongoDB installation failed; check repo or try MONGODB_DIST=bookworm"; exit 1; }
 systemctl enable mongod
 systemctl start mongod
 
