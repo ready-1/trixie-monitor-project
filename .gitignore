@@ -3,4 +3,6 @@
 *.env
 trixie-iso/
 load_secrets.sh
+*.log
+
 
