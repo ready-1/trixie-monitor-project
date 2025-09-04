@@ -1,12 +1,12 @@
 #!/bin/zsh
-# Breadcrumb: [2025-09-03 20:38 EDT | 1743989880] Sync Script for Trixie Monitor Project
-# Description: Copies specified scripts from Mac to Debian Trixie VM for development and pushes to GitHub.
-# Hardcoded paths used per user request. Includes passwordless SSH setup (manual key management supported).
+# Breadcrumb: [2025-09-03 20:50 EDT | 1743990600] Sync Script for Trixie Monitor Project
+# Description: Copies specified scripts from Mac to Debian Trixie VM and pushes to GitHub.
+# Hardcoded paths used per user request. Includes passwordless SSH setup via ssh-copy-id.
 # Pushes to GitHub 'main' branch for visibility, no fetching. Continues on clean Git tree.
 # Usage: ./sync.sh <target-ip> [--dry-run] [--no-key]
 # Example: ./sync.sh 192.168.99.176 --dry-run
-# Requirements: scp, ssh-copy-id, git, SSH access to target, sshkeys file
-# Notes: Uses zsh for macOS compatibility. Files listed explicitly for replicability. Logs to sync.log.
+# Requirements: scp, ssh-copy-id, git, SSH access, sshkeys file (outside project)
+# Notes: Uses zsh for macOS. Files listed explicitly for replicability. Logs to sync.log.
 
 set -e  # Exit on error
 
@@ -33,7 +33,6 @@ FILES=(
     "sudoit.sh"
     "doit.sh"
     "m4300-cli-manual-repaired.pdf"
-    "phase3_graylog_journal_fix.sh"
 )
 
 # Function for formatted section output
@@ -47,14 +46,8 @@ print_section() {
 exec > >(tee -a "$LOG_FILE") 2>&1
 print_section "Starting sync at $(date '+%Y-%m-%d %H:%M:%S')"
 
-# Validate sshkeys file
-print_section "Checking sshkeys file"
-if [[ -f "sshkeys" ]]; then
-    source sshkeys || { echo "Error: Failed to source sshkeys."; exit 1 }
-else
-    echo "Error: sshkeys file not found in $LOCAL_REPO."
-    exit 1
-fi
+# Source sshkeys (assumed outside project, no validation)
+source sshkeys || { echo "Error: Failed to source sshkeys."; exit 1 }
 
 # Validate target IP
 if [[ -z "$TARGET_IP" ]]; then

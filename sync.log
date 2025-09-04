@@ -1,0 +1,89 @@
+----------------------------------------
+Starting sync at 2025-09-03 20:49:21
+----------------------------------------
+----------------------------------------
+Checking sshkeys file
+----------------------------------------
+Error: sshkeys file not found in /Users/bob/dev/trixie-monitor-project.
+----------------------------------------
+Starting sync at 2025-09-03 20:51:05
+----------------------------------------
+Info: Key already loaded: id_bob_ed25519
+Info: Key already loaded: id_bob_rsa
+Info: Key already loaded: id_ed25519
+Info: Key already loaded: ready-1-GitHub
+Key Type  Comment
+--------  ----------------------
+ED25519
+RSA
+ED25519
+RSA
+----------------------------------------
+Verifying connectivity to 192.168.99.230
+----------------------------------------
+SSH connectivity confirmed.
+----------------------------------------
+Checking SSH key
+----------------------------------------
+----------------------------------------
+Adding SSH key to 192.168.99.230
+----------------------------------------
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/bob/.ssh/id_bob_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+
+/usr/bin/ssh-copy-id: WARNING: All keys were skipped because they already exist on the remote system.
+		(if you think this is a mistake, you may want to use -f option)
+
+SSH key added successfully.
+----------------------------------------
+Checking local files
+----------------------------------------
+Error: File phase3_graylog_journal_fix.sh not found.
+Error: One or more files missing. Aborting.
+----------------------------------------
+Starting sync at 2025-09-03 20:51:44
+----------------------------------------
+Info: Key already loaded: id_bob_ed25519
+Info: Key already loaded: id_bob_rsa
+Info: Key already loaded: id_ed25519
+Info: Key already loaded: ready-1-GitHub
+Key Type  Comment
+--------  ----------------------
+ED25519
+RSA
+ED25519
+RSA
+----------------------------------------
+Verifying connectivity to 192.168.99.230
+----------------------------------------
+SSH connectivity confirmed.
+----------------------------------------
+Checking SSH key
+----------------------------------------
+----------------------------------------
+Adding SSH key to 192.168.99.230
+----------------------------------------
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/bob/.ssh/id_bob_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+
+/usr/bin/ssh-copy-id: WARNING: All keys were skipped because they already exist on the remote system.
+		(if you think this is a mistake, you may want to use -f option)
+
+SSH key added successfully.
+----------------------------------------
+Checking local files
+----------------------------------------
+All 7 files found.
+----------------------------------------
+Copying files to monitor@192.168.99.230:/home/monitor/
+----------------------------------------
+  Copied phase1_setup.sh successfully.
+  Copied phase2_setup.sh successfully.
+  Copied phase3_setup.sh successfully.
+  Copied config.sh successfully.
+  Copied sudoit.sh successfully.
+  Copied doit.sh successfully.
+  Copied m4300-cli-manual-repaired.pdf successfully.
+----------------------------------------
+Pushing to GitHub from /Users/bob/dev/trixie-monitor-project
+----------------------------------------
