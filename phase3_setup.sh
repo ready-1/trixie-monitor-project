@@ -1,8 +1,9 @@
-#!/bin/bash
-# Breadcrumb: [2025-09-04 09:15 EDT | 1743946500] Phase 3 Setup Script for Graylog and Nginx on ARM64 Debian Trixie
+# File: phase3_setup.sh
+# Breadcrumb: [2025-09-04 08:42 EDT | 1744039320]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
-# for monitoring NETGEAR M4300 switches. Supports ARM64; uses APT for MongoDB/Graylog, ARM64 DEB for OpenSearch.
-# Fixes architecture mismatch and sed error in graylog-server post-install.
+# for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses APT repo for OpenSearch to fix 403 download error.
+# Supports ARM64; installs OpenSearch 2.11.1 via repo (or latest 2.x if unavailable).
+# Fixes architecture mismatch, sed error in graylog-server post-install, and ensures replicability.
 # Usage: Run as root or with sudo, e.g., `sudo ./phase3_setup.sh`
 
 # Exit on error
@@ -18,11 +19,10 @@ fi
 # Define variables
 LOG_FILE="/home/monitor/phase3_setup.log"
 GRAYLOG_VERSION="6.0"
-OPENSEARCH_VERSION="2.11.1"
+OPENSEARCH_VERSION="2.11.1"  # Specific version; falls back to latest 2.x if unavailable
 NGINX_CONF="/etc/nginx/sites-available/graylog"
 GRAYLOG_CONF="/etc/graylog/server/server.conf"
 REPO_URL="https://packages.graylog2.org/repo/packages/graylog-$GRAYLOG_VERSION-repository_latest.deb"
-OPENSEARCH_DEB_URL="https://artifacts.opensearch.org/releases/bundle/opensearch/$OPENSEARCH_VERSION/opensearch-$OPENSEARCH_VERSION-linux-aarch64.deb"
 
 # Log all output to file and console
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -33,15 +33,22 @@ echo "----------------------------------------"
 # Install required packages (OpenJDK 21 via APT for ARM64)
 echo "Installing dependencies..."
 apt-get update
-apt-get install -y curl gnupg apt-transport-https openjdk-21-jre-headless uuid-runtime nginx pwgen
+apt-get install -y curl gnupg apt-transport-https lsb-release ca-certificates openjdk-21-jre-headless uuid-runtime nginx pwgen
 
-# Install OpenSearch (ARM64 DEB)
-echo "Installing OpenSearch $OPENSEARCH_VERSION (ARM64)..."
-wget -4 --timeout=30 -O opensearch.deb "$OPENSEARCH_DEB_URL"
-dpkg -i opensearch.deb || { echo "OpenSearch installation failed"; exit 1; }
-rm opensearch.deb
+# Install OpenSearch via APT repository (fixes 403 direct download error)
+echo "Installing OpenSearch $OPENSEARCH_VERSION via APT (ARM64)..."
+curl -o- https://artifacts.opensearch.org/publickeys/opensearch.pgp | gpg --dearmor --batch --yes -o /usr/share/keyrings/opensearch-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/opensearch-keyring.gpg] https://artifacts.opensearch.org/releases/bundle/opensearch/2.x/apt stable main" | tee /etc/apt/sources.list.d/opensearch-2.x.list
+apt-get update
+# Install specific version if available; otherwise latest 2.x
+if apt-cache policy opensearch | grep -q "$OPENSEARCH_VERSION"; then
+    apt-get install -y "opensearch=$OPENSEARCH_VERSION"
+else
+    echo "Warning: $OPENSEARCH_VERSION not available; installing latest 2.x"
+    apt-get install -y opensearch
+fi
 
-# Configure OpenSearch
+# Configure OpenSearch (disable security for simplicity; enable in production)
 echo "Configuring OpenSearch..."
 cat <<EOF >/etc/opensearch/opensearch.yml
 cluster.name: graylog
@@ -49,6 +56,7 @@ network.host: 127.0.0.1
 discovery.type: single-node
 plugins.security.disabled: true
 EOF
+systemctl daemon-reload  # Reload after repo install
 systemctl enable opensearch
 systemctl start opensearch
 
@@ -72,7 +80,7 @@ apt-get update
 echo "Preconfiguring Graylog to avoid sed error..."
 mkdir -p /etc/graylog/server
 PASSWORD_SECRET=$(pwgen -N 1 -s 96)
-ADMIN_PASSWORD="admin123"  # Change this for production
+ADMIN_PASSWORD="admin123"  # Change for production
 ADMIN_HASH=$(echo -n "$ADMIN_PASSWORD" | sha256sum | cut -d" " -f1)
 cat <<EOF >"$GRAYLOG_CONF"
 is_leader = true
