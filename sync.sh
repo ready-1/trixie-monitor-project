@@ -126,7 +126,7 @@ if [[ -d ".git" ]]; then
     if git diff --staged --quiet; then
         echo "No changes to commit, continuing..."
     else
-        git commit -m "Auto commit $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nothing to commit."
+        git commit -m "Auto commit by synch.sh $(date '+%Y-%m-%d %H:%M:%S')" || echo "Nothing to commit."
     fi
     if git push origin main; then
         echo "Push successful."
