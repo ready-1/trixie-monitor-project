@@ -87,3 +87,63 @@ Copying files to monitor@192.168.99.230:/home/monitor/
 ----------------------------------------
 Pushing to GitHub from /Users/bob/dev/trixie-monitor-project
 ----------------------------------------
+[main bc0689b] Auto commit 2025-09-03 20:51:46
+ 2 files changed, 96 insertions(+), 14 deletions(-)
+ create mode 100644 sync.log
+To github.com:ready-1/trixie-monitor-project.git
+   ce4cb43..bc0689b  main -> main
+Push successful.
+----------------------------------------
+Sync completed at 2025-09-03 20:51:47
+----------------------------------------
+Log saved to /Users/bob/dev/trixie-monitor-project/sync.log
+----------------------------------------
+Starting sync at 2025-09-03 20:58:38
+----------------------------------------
+Info: Key already loaded: id_bob_ed25519
+Info: Key already loaded: id_bob_rsa
+Info: Key already loaded: id_ed25519
+Info: Key already loaded: ready-1-GitHub
+Key Type  Comment
+--------  ----------------------
+ED25519
+RSA
+ED25519
+RSA
+----------------------------------------
+Verifying connectivity to 192.168.99.167
+----------------------------------------
+SSH connectivity confirmed.
+----------------------------------------
+Checking SSH key
+----------------------------------------
+----------------------------------------
+Adding SSH key to 192.168.99.167
+----------------------------------------
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/bob/.ssh/id_bob_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+
+Number of key(s) added:        1
+
+Now try logging into the machine, with: "ssh -i /Users/bob/.ssh/id_bob_ed25519 'monitor@192.168.99.167'"
+and check to make sure that only the key(s) you wanted were added.
+
+SSH key added successfully.
+----------------------------------------
+Checking local files
+----------------------------------------
+All 7 files found.
+----------------------------------------
+Copying files to monitor@192.168.99.167:/home/monitor/
+----------------------------------------
+  Copied phase1_setup.sh successfully.
+  Copied phase2_setup.sh successfully.
+  Copied phase3_setup.sh successfully.
+  Copied config.sh successfully.
+  Copied sudoit.sh successfully.
+  Copied doit.sh successfully.
+  Copied m4300-cli-manual-repaired.pdf successfully.
+----------------------------------------
+Pushing to GitHub from /Users/bob/dev/trixie-monitor-project
+----------------------------------------
