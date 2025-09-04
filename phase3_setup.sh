@@ -1,11 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:42 EDT | 1744042920]
+# Breadcrumb: [2025-09-04 09:46 EDT | 1744043160]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
 # Uses jammy for MongoDB repo; APT for OpenSearch and Graylog; post-install chown for Graylog.
-# Fixes Graylog conffile prompt with Dpkg::Options --force-confold and --force-confdef.
-# Fixes MongoDB APT, sed error, and signature warnings (transient).
+# Fixes Graylog API inaccessibility with retry loop, MongoDB APT, sed error, conffile prompt, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -125,6 +124,30 @@ chmod 600 "$GRAYLOG_CONF"
 systemctl enable graylog-server
 systemctl start graylog-server
 
+# Wait for Graylog to start (up to 60 seconds)
+echo "Waiting for Graylog API to become available..."
+for i in {1..12}; do
+    if curl -s -f http://127.0.0.1:9000/api/system | grep -q "cluster_id"; then
+        echo "Graylog API is accessible"
+        break
+    fi
+    echo "Attempt $i: Graylog API not yet available, waiting 5 seconds..."
+    sleep 5
+done
+
+# Final API test
+echo "Testing Graylog API..."
+if curl -s -f http://127.0.0.1:9000/api/system | grep -q "cluster_id"; then
+    echo "Graylog API is accessible"
+else
+    echo "Error: Graylog API not accessible"
+    echo "Diagnostics:"
+    echo "- Check Graylog logs: journalctl -u graylog-server -n 50"
+    echo "- Verify port 9000: netstat -tuln | grep 9000"
+    echo "- Ensure MongoDB/OpenSearch: systemctl status mongod opensearch"
+    exit 1
+fi
+
 # Install and configure Nginx
 echo "Configuring Nginx as reverse proxy..."
 cat <<EOF >"$NGINX_CONF"
@@ -155,15 +178,6 @@ for svc in opensearch mongod graylog-server nginx; do
         echo "$svc service is running"
     fi
 done
-
-# Test Graylog API
-echo "Testing Graylog API..."
-if curl -s -f http://127.0.0.1:9000/api/system | grep -q "cluster_id"; then
-    echo "Graylog API is accessible"
-else
-    echo "Error: Graylog API not accessible"
-    exit 1
-fi
 
 echo "----------------------------------------"
 echo "Phase 3 setup completed successfully at $(date '+%Y-%m-%d %H:%M:%S')"
