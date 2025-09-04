@@ -1,3 +1,4 @@
+#!/bin/bash
 # File: phase3_setup.sh
 # Breadcrumb: [2025-09-04 09:30 EDT | 1744042200]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
