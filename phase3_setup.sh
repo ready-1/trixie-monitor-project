@@ -1,12 +1,19 @@
 #!/bin/bash
-# Breadcrumb: [2025-09-03 21:12 EDT | 1743993120] Phase 3 Setup Script for Graylog and Nginx
+# Breadcrumb: [2025-09-04 09:15 EDT | 1743946500] Phase 3 Setup Script for Graylog and Nginx on ARM64 Debian Trixie
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
-# on Debian Trixie for monitoring NETGEAR M4300 switches. Hardcoded paths used per user request.
-# Fixes sed error in graylog-server post-install by preconfiguring server.conf.
+# for monitoring NETGEAR M4300 switches. Supports ARM64; uses APT for MongoDB/Graylog, ARM64 DEB for OpenSearch.
+# Fixes architecture mismatch and sed error in graylog-server post-install.
 # Usage: Run as root or with sudo, e.g., `sudo ./phase3_setup.sh`
 
 # Exit on error
 set -e
+
+# Detect architecture
+ARCH=$(dpkg --print-architecture)
+if [ "$ARCH" != "arm64" ] && [ "$ARCH" != "aarch64" ]; then
+    echo "Error: This script is optimized for ARM64. Detected: $ARCH"
+    exit 1
+fi
 
 # Define variables
 LOG_FILE="/home/monitor/phase3_setup.log"
@@ -15,22 +22,22 @@ OPENSEARCH_VERSION="2.11.1"
 NGINX_CONF="/etc/nginx/sites-available/graylog"
 GRAYLOG_CONF="/etc/graylog/server/server.conf"
 REPO_URL="https://packages.graylog2.org/repo/packages/graylog-$GRAYLOG_VERSION-repository_latest.deb"
-REPO_KEY="https://packages.graylog2.org/repo/debian/graylog_key.asc"
+OPENSEARCH_DEB_URL="https://artifacts.opensearch.org/releases/bundle/opensearch/$OPENSEARCH_VERSION/opensearch-$OPENSEARCH_VERSION-linux-aarch64.deb"
 
 # Log all output to file and console
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "----------------------------------------"
-echo "Starting Phase 3 setup at $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Starting Phase 3 setup at $(date '+%Y-%m-%d %H:%M:%S') (ARM64 detected)"
 echo "----------------------------------------"
 
-# Install required packages
+# Install required packages (OpenJDK 21 via APT for ARM64)
 echo "Installing dependencies..."
 apt-get update
-apt-get install -y curl gnupg apt-transport-https openjdk-21-jre-headless uuid-runtime nginx
+apt-get install -y curl gnupg apt-transport-https openjdk-21-jre-headless uuid-runtime nginx pwgen
 
-# Install OpenSearch
-echo "Installing OpenSearch $OPENSEARCH_VERSION..."
-wget -4 --timeout=30 -O opensearch.deb "https://artifacts.opensearch.org/releases/bundle/opensearch/$OPENSEARCH_VERSION/opensearch-$OPENSEARCH_VERSION-linux-x64.deb"
+# Install OpenSearch (ARM64 DEB)
+echo "Installing OpenSearch $OPENSEARCH_VERSION (ARM64)..."
+wget -4 --timeout=30 -O opensearch.deb "$OPENSEARCH_DEB_URL"
 dpkg -i opensearch.deb || { echo "OpenSearch installation failed"; exit 1; }
 rm opensearch.deb
 
@@ -45,16 +52,17 @@ EOF
 systemctl enable opensearch
 systemctl start opensearch
 
-# Install MongoDB
-echo "Installing MongoDB..."
-wget -4 --timeout=30 -O mongodb.deb "https://repo.mongodb.org/apt/debian/dists/bookworm/mongodb-org/7.0/main/binary-amd64/mongodb-org-server_7.0.14_amd64.deb"
-dpkg -i mongodb.deb || { echo "MongoDB installation failed"; exit 1; }
-rm mongodb.deb
+# Install MongoDB via APT repository (supports ARM64)
+echo "Installing MongoDB 7.0 via APT..."
+curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg
+echo "deb [ arch=arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian trixie/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+apt-get update
+apt-get install -y mongodb-org
 systemctl enable mongod
 systemctl start mongod
 
 # Install Graylog repository
-echo "Installing Graylog repository..."
+echo "Installing Graylog $GRAYLOG_VERSION repository..."
 wget -4 --timeout=30 --tries=3 -O graylog-repo.deb "$REPO_URL"
 dpkg -i graylog-repo.deb || { echo "Graylog repository installation failed"; exit 1; }
 rm graylog-repo.deb
@@ -63,12 +71,14 @@ apt-get update
 # Preconfigure Graylog server.conf to avoid sed error
 echo "Preconfiguring Graylog to avoid sed error..."
 mkdir -p /etc/graylog/server
+PASSWORD_SECRET=$(pwgen -N 1 -s 96)
+ADMIN_PASSWORD="admin123"  # Change this for production
+ADMIN_HASH=$(echo -n "$ADMIN_PASSWORD" | sha256sum | cut -d" " -f1)
 cat <<EOF >"$GRAYLOG_CONF"
-mongodb_uri = mongodb://localhost/graylog
 is_leader = true
 node_id_file = /etc/graylog/server/node-id
-password_secret = $(pwgen -N 1 -s 96)
-root_password_sha2 = $(echo -n "admin123" | sha256sum | cut -d" " -f1)
+password_secret = $PASSWORD_SECRET
+root_password_sha2 = $ADMIN_HASH
 root_timezone = UTC
 http_bind_address = 127.0.0.1:9000
 http_publish_uri = http://$(hostname -I | awk '{print $1}'):9000/
@@ -83,8 +93,8 @@ chmod 600 "$GRAYLOG_CONF"
 echo "Installing Graylog $GRAYLOG_VERSION..."
 if ! apt-get install -y graylog-server; then
     echo "Warning: Graylog installation encountered errors (likely sed issue). Attempting to fix..."
-    dpkg --configure -a  # Re-run configuration to complete setup
-    apt-get install -f -y  # Fix any broken dependencies
+    dpkg --configure -a  # Re-run configuration
+    apt-get install -f -y  # Fix dependencies
 fi
 
 # Start and enable Graylog
@@ -135,4 +145,5 @@ echo "----------------------------------------"
 echo "Phase 3 setup completed successfully at $(date '+%Y-%m-%d %H:%M:%S')"
 echo "Access Graylog at http://$(hostname -I | awk '{print $1}'):80 with username 'admin' and password 'admin123'"
 echo "Log saved to $LOG_FILE"
+echo "Password secret: $PASSWORD_SECRET (save securely)"
 echo "----------------------------------------"
