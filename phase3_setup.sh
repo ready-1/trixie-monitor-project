@@ -1,10 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:06 EDT | 1744040760]
+# Breadcrumb: [2025-09-04 09:21 EDT | 1744041660]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
 # Uses jammy for MongoDB repo (Trixie/bookworm unsupported for ARM64); APT for OpenSearch; post-install chown for Graylog.
-# Fixes shebang, MongoDB APT error, Graylog sed error, and signature warnings (transient).
+# Fixes Graylog conffile prompt (force-confold with dpkg), MongoDB APT error, Graylog sed error, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -105,10 +105,11 @@ http_thread_pool_size = 16
 EOF
 chmod 644 "$GRAYLOG_CONF"  # Temporary; package will adjust
 
-# Install Graylog with workaround for post-install sed error
+# Install Graylog with strong noninteractive handling to avoid conffile prompt
 echo "Installing Graylog $GRAYLOG_VERSION..."
-if ! apt-get install -y graylog-server; then
-    echo "Warning: Graylog installation encountered errors (likely sed issue). Attempting to fix..."
+export DEBIAN_FRONTEND=noninteractive
+if ! echo "N" | dpkg --configure --pending --force-confold || ! apt-get install -y --force-confold graylog-server; then
+    echo "Warning: Graylog installation encountered errors (likely sed or conffile issue). Attempting to fix..."
     dpkg --configure -a
     apt-get install -f -y
 fi
