@@ -1,10 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:27 EDT | 1744042020]
+# Breadcrumb: [2025-09-04 09:34 EDT | 1744042440]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
-# Uses jammy for MongoDB repo; APT for OpenSearch; dpkg for Graylog to fix conffile prompt.
-# Fixes Graylog conffile prompt (dpkg --force-confold), MongoDB APT, sed error, and uses $MONITOR_PASS.
+# Uses jammy for MongoDB repo; APT for OpenSearch and Graylog (fixes 404); post-install chown for Graylog.
+# Fixes Graylog conffile prompt (dpkg --force-confold), MongoDB APT, sed error, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -19,7 +19,7 @@ fi
 # Verify MONITOR_PASS is set
 if [ -z "$MONITOR_PASS" ]; then
     echo "Error: MONITOR_PASS environment variable not set."
-    echo "Set it with: export MONITOR_PASS='your_password' and rerun."
+    echo "Set it with: export MONITOR_PASS='FuseFuse123!' and rerun."
     exit 1
 fi
 
@@ -37,7 +37,6 @@ OPENSEARCH_VERSION="2.11.1"  # Specific version; falls back to latest 2.x if una
 NGINX_CONF="/etc/nginx/sites-available/graylog"
 GRAYLOG_CONF="/etc/graylog/server/server.conf"
 REPO_URL="https://packages.graylog2.org/repo/packages/graylog-$GRAYLOG_VERSION-repository_latest.deb"
-GRAYLOG_PKG_URL="https://packages.graylog2.org/repo/debian/pool/stable/6.0/g/graylog-server/graylog-server_$GRAYLOG_VERSION-1_arm64.deb"
 MONGODB_DIST="jammy"  # Use Ubuntu jammy for MongoDB ARM64
 # Alternative: MONGODB_DIST="bookworm" (uncomment if jammy fails)
 
@@ -112,16 +111,15 @@ http_thread_pool_size = 16
 EOF
 chmod 644 "$GRAYLOG_CONF"  # Temporary; package will adjust
 
-# Install Graylog with strong noninteractive handling to avoid conffile prompt
+# Install Graylog with noninteractive handling to avoid conffile prompt
 echo "Installing Graylog $GRAYLOG_VERSION..."
-wget -4 --timeout=30 --tries=3 -O graylog-server.deb "$GRAYLOG_PKG_URL"
 export DEBIAN_FRONTEND=noninteractive
-if ! echo "N" | dpkg --install --force-confold graylog-server.deb; then
+echo "N" | dpkg --configure --pending --force-confold
+if ! apt-get install -y graylog-server; then
     echo "Warning: Graylog installation encountered errors (likely sed or conffile issue). Attempting to fix..."
     dpkg --configure -a
     apt-get install -f -y
 fi
-rm graylog-server.deb
 
 # Chown after install (user/group now exists)
 chown graylog:graylog "$GRAYLOG_CONF"
