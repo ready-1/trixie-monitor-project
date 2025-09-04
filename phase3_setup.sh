@@ -1,10 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:53 EDT | 1744043580]
+# Breadcrumb: [2025-09-04 10:00 EDT | 1744044000]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
 # Uses jammy for MongoDB repo; APT for OpenSearch and Graylog; post-install chown for Graylog.
-# Fixes Graylog API with journal size (1GB), conffile prompt (DPkg::Options), MongoDB APT, sed error, and signature warnings (transient).
+# Fixes Graylog startup with mongodb_uri and elasticsearch_hosts, API with retry loop, conffile prompt, MongoDB APT, sed error, and signature warnings (transient).
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -98,6 +98,8 @@ mkdir -p /etc/graylog/server
 PASSWORD_SECRET=$(pwgen -N 1 -s 96)
 ADMIN_HASH=$(echo -n "$MONITOR_PASS" | sha256sum | cut -d" " -f1)
 cat <<EOF >"$GRAYLOG_CONF"
+mongodb_uri = mongodb://localhost/graylog
+elasticsearch_hosts = http://127.0.0.1:9200
 is_leader = true
 node_id_file = /etc/graylog/server/node-id
 password_secret = $PASSWORD_SECRET
@@ -115,7 +117,7 @@ chmod 644 "$GRAYLOG_CONF"  # Temporary; package will adjust
 # Install Graylog with noninteractive handling to avoid conffile prompt
 echo "Installing Graylog $GRAYLOG_VERSION..."
 export DEBIAN_FRONTEND=noninteractive
-apt-get install -y -o DPkg::Options::="--force-confdef" -o DPkg::Options::="--force-confold" graylog-server || { echo "Graylog installation failed; attempting to fix..."; dpkg --configure -a; apt-get install -f -y; }
+apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" graylog-server || { echo "Graylog installation failed; attempting to fix..."; dpkg --configure -a; apt-get install -f -y; }
 
 # Chown after install (user/group now exists)
 chown graylog:graylog "$GRAYLOG_CONF"
