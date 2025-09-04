@@ -1,10 +1,10 @@
 #!/bin/bash
 # File: phase3_setup.sh
-# Breadcrumb: [2025-09-04 09:21 EDT | 1744041660]
+# Breadcrumb: [2025-09-04 09:27 EDT | 1744042020]
 # Description: Installs and configures Nginx as a reverse proxy and Graylog as a syslog server
 # for monitoring NETGEAR M4300 switches on ARM64 Debian Trixie. Uses Bash for logging.
-# Uses jammy for MongoDB repo (Trixie/bookworm unsupported for ARM64); APT for OpenSearch; post-install chown for Graylog.
-# Fixes Graylog conffile prompt (force-confold with dpkg), MongoDB APT error, Graylog sed error, and signature warnings (transient).
+# Uses jammy for MongoDB repo; APT for OpenSearch; dpkg for Graylog to fix conffile prompt.
+# Fixes Graylog conffile prompt (dpkg --force-confold), MongoDB APT, sed error, and uses $MONITOR_PASS.
 # Usage: Run as root or with sudo, e.g., `sudo bash /home/monitor/phase3_setup.sh` or `chmod +x` and `sudo /home/monitor/phase3_setup.sh`
 
 # Exit on error
@@ -13,6 +13,13 @@ set -e
 # Verify Bash is used
 if [ -z "$BASH_VERSION" ]; then
     echo "Error: This script requires Bash. Run with 'bash $0' or ensure executable permissions."
+    exit 1
+fi
+
+# Verify MONITOR_PASS is set
+if [ -z "$MONITOR_PASS" ]; then
+    echo "Error: MONITOR_PASS environment variable not set."
+    echo "Set it with: export MONITOR_PASS='your_password' and rerun."
     exit 1
 fi
 
@@ -30,7 +37,8 @@ OPENSEARCH_VERSION="2.11.1"  # Specific version; falls back to latest 2.x if una
 NGINX_CONF="/etc/nginx/sites-available/graylog"
 GRAYLOG_CONF="/etc/graylog/server/server.conf"
 REPO_URL="https://packages.graylog2.org/repo/packages/graylog-$GRAYLOG_VERSION-repository_latest.deb"
-MONGODB_DIST="jammy"  # Use Ubuntu jammy for MongoDB ARM64 (Trixie unsupported; bookworm failed)
+GRAYLOG_PKG_URL="https://packages.graylog2.org/repo/debian/pool/stable/6.0/g/graylog-server/graylog-server_$GRAYLOG_VERSION-1_arm64.deb"
+MONGODB_DIST="jammy"  # Use Ubuntu jammy for MongoDB ARM64
 # Alternative: MONGODB_DIST="bookworm" (uncomment if jammy fails)
 
 # Log all output to file and console (Bash-specific)
@@ -89,8 +97,7 @@ apt-get update
 echo "Preconfiguring Graylog to avoid sed error..."
 mkdir -p /etc/graylog/server
 PASSWORD_SECRET=$(pwgen -N 1 -s 96)
-ADMIN_PASSWORD="admin123"  # Change for production
-ADMIN_HASH=$(echo -n "$ADMIN_PASSWORD" | sha256sum | cut -d" " -f1)
+ADMIN_HASH=$(echo -n "$MONITOR_PASS" | sha256sum | cut -d" " -f1)
 cat <<EOF >"$GRAYLOG_CONF"
 is_leader = true
 node_id_file = /etc/graylog/server/node-id
@@ -98,7 +105,7 @@ password_secret = $PASSWORD_SECRET
 root_password_sha2 = $ADMIN_HASH
 root_timezone = UTC
 http_bind_address = 127.0.0.1:9000
-http_publish_uri = http://$(hostname -I | awk '{print $1}'):9000/
+http_publish_uri = http://192.168.99.91:9000/
 http_enable_cors = true
 http_max_header_size = 8192
 http_thread_pool_size = 16
@@ -107,12 +114,14 @@ chmod 644 "$GRAYLOG_CONF"  # Temporary; package will adjust
 
 # Install Graylog with strong noninteractive handling to avoid conffile prompt
 echo "Installing Graylog $GRAYLOG_VERSION..."
+wget -4 --timeout=30 --tries=3 -O graylog-server.deb "$GRAYLOG_PKG_URL"
 export DEBIAN_FRONTEND=noninteractive
-if ! echo "N" | dpkg --configure --pending --force-confold || ! apt-get install -y --force-confold graylog-server; then
+if ! echo "N" | dpkg --install --force-confold graylog-server.deb; then
     echo "Warning: Graylog installation encountered errors (likely sed or conffile issue). Attempting to fix..."
     dpkg --configure -a
     apt-get install -f -y
 fi
+rm graylog-server.deb
 
 # Chown after install (user/group now exists)
 chown graylog:graylog "$GRAYLOG_CONF"
@@ -164,7 +173,7 @@ fi
 
 echo "----------------------------------------"
 echo "Phase 3 setup completed successfully at $(date '+%Y-%m-%d %H:%M:%S')"
-echo "Access Graylog at http://$(hostname -I | awk '{print $1}'):80 with username 'admin' and password 'admin123'"
+echo "Access Graylog at http://192.168.99.91:80 with username 'admin' and password set in MONITOR_PASS"
 echo "Log saved to $LOG_FILE"
 echo "Password secret: $PASSWORD_SECRET (save securely)"
 echo "Note: Signature warnings are transient (Trixie fresh release); resolve post-2025-09-04."
