@@ -10,7 +10,7 @@ source /home/monitor/load_secrets.sh
 clear
 
 # give a little info
-echo -e "executing... \n Command: /home/monitor/phase${1}_setup.sh $2\nCredentials: ${MONITOR_PASS}"
+echo -e "executing... \n Command: sudo -SE bash /home/monitor/phase${1}_setup.sh $2\nCredentials: ${MONITOR_PASS}"
 # execute the script as monitor user 
-echo $MONITOR_PASS | sudo -SE /home/monitor/phase${1}_setup.sh $2
+echo $MONITOR_PASS | sudo -SE bash /home/monitor/phase${1}_setup.sh $2
 

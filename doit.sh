@@ -7,11 +7,10 @@
 # setup the environment just in case the script doesn't
 source /home/monitor/config.sh
 source /home/monitor/load_secrets.sh
-
 clear
 
 # give a little info
-echo -e "executing... \n Command: /home/monitor/phase${1}_setup.sh $2"
+echo -e "executing... \n Command: bash /home/monitor/phase${1}_setup.sh $2"
 # execute the script as monitor user 
-/home/monitor/phase${1}_setup.sh $2
+bash /home/monitor/phase${1}_setup.sh $2
 
