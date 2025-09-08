@@ -5,10 +5,10 @@
 # Breadcrumb: [CONFIG_HOME_DIR_FIX_20250903] No changes needed; MONITOR_USER exported for use in scripts.
 
 # Phase 1: Base Server
-export IN_BAND_IP="192.168.99.91/24"      # In-band IP (VM/Server 1; 192.168.99.92/24 for Server 2)
-export OOB_IP="10.211.55.2/24"            # OOB IP (Parallels Shared; TBD for Intel)
-export GATEWAY="192.168.99.1"             # pfSense gateway
-export DNS_SERVERS="192.168.99.1 8.8.8.8"  # Space-separated list of IPv4 addresses; primary first, fallback(s) next. Use local (e.g., pfSense gateway) if available for lower latency; public like 8.8.8.8/8.8.4.4 (Google) or 1.1.1.1 (Cloudflare) as backups.
+export IN_BAND_IP="10.211.55.100/24"      # In-band IP (VM/Server 1; 192.168.99.92/24 for Server 2)
+export OOB_IP="10.211.55.3/24"            # OOB IP (Parallels Shared; TBD for Intel)
+export GATEWAY="10.211.55.2"             # pfSense gateway
+export DNS_SERVERS="1.1.1.1 8.8.8.8"  # Space-separated list of IPv4 addresses; primary first, fallback(s) next. Use local (e.g., pfSense gateway) if available for lower latency; public like 8.8.8.8/8.8.4.4 (Google) or 1.1.1.1 (Cloudflare) as backups.
 export DNS_SEARCH="mydomain.local"        # Update this to the local search domain
 
 export MONITOR_USER="monitor"             # Consistent user
@@ -17,17 +17,17 @@ export MONITOR_PASS="FuseFuse123!"        # Temporary password, change post-setu
 export PUBLIC_SSH_KEY=""                  # Replace with: cat /Users/bob/.ssh/id_bob_ed25519.pub
 export TAILSCALE_AUTHKEY=""               # Replace with Tailscale key from https://login.tailscale.com/admin/settings/keys
 
-export TAILSCALE_SUBNET="192.168.99.0/24" # Subnet to advertise
+export TAILSCALE_SUBNET="10.211.55.0/24" # Subnet to advertise
 
 export GRAYLOG_LOG_SIZE="50G"             # LVM size for /var/log/graylog
 
 export HOSTNAME="monitor-server"          # Server hostname
-export DOMAIN="eastpointe.local"          # Domain (optional)
+export DOMAIN="monitor.local"          # Domain (optional)
 
 export TIMEZONE="UTC"                     # Timezone
 export LOCALE="en_US.UTF-8"               # Locale
 
-export FUSESYSTEM=""                      # the color code of the system/network (green, red, blue, etc.)
+export FUSESYSTEM="dev"                      # the color code of the system/network (green, red, blue, etc.)
 
 # Future Phases (Prometheus, Grafana, Graylog, Ansible, Nginx)
 export PROMETHEUS_PORT="9090"             # Prometheus default port
