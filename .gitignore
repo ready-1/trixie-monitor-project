@@ -2,6 +2,7 @@
 .env
 *.env
 trixie-iso/
+debs/
 load_secrets.sh
 *.log
 
